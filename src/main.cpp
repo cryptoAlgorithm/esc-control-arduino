@@ -19,7 +19,9 @@ Servo esc2;
                     delay(500); \
                     psuOn = true; \
                   } // PSU delay to wait for PSU to turn on
-#define PSU_OFF() { digitalWrite(PSU_PIN, 1); \
+#define PSU_OFF() { esc1.writeMicroseconds(MIN_PERIOD); \
+                    esc2.writeMicroseconds(MIN_PERIOD); \
+                    digitalWrite(PSU_PIN, 1); \
                     Serial.println(F("PSU OFF")); \
                     psuOn = false; \
                   }
