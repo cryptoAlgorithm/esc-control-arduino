@@ -14,16 +14,22 @@ Servo esc1;
 Servo esc2;
 
 // PSU macros
-#define PSU_ON() digitalWrite(PSU_PIN, 0); \
-                 Serial.println(F("PSU ON")); \
-                 delay(500) // PSU delay to wait for PSU to turn on
-#define PSU_OFF() digitalWrite(PSU_PIN, 1); \
-                 Serial.println(F("PSU OFF"))
+#define PSU_ON()  { digitalWrite(PSU_PIN, 0); \
+                    Serial.println(F("PSU ON")); \
+                    delay(500); \
+                    psuOn = true; \
+                  } // PSU delay to wait for PSU to turn on
+#define PSU_OFF() { digitalWrite(PSU_PIN, 1); \
+                    Serial.println(F("PSU OFF")); \
+                    psuOn = false; \
+                  }
 
 // Serial macros
 #define SERIAL_FLUSH() while (Serial.available()) Serial.read() // Clear the remaining data in the serial buffer
-#define SPEED_PROMPT() SERIAL_FLUSH(); Serial.println(F("Set interval (1000-2000us): "))
+#define SPEED_PROMPT() SERIAL_FLUSH(); Serial.print(F("Set interval (1000-2000us): "))
 
+
+bool psuOn = false;
 
 /**
  * Initialises ESCs with correct startup sequence
@@ -74,7 +80,7 @@ void setup() {
 void loop() {
   // Pull out all variables used in loop for better "memory management"
   uint32_t rawRead, interval;
-  char act, next;
+  char act;
 
   // Command format: <TBSO>[speed]
   if (Serial.available()) {
@@ -83,35 +89,45 @@ void loop() {
     switch (act) {
       case 'T': // Top ESC
       case 'B': // Bottom ESC
+      case 'P': // PSU actions
         break;
-      case 'S': // PSU [S]hutoff
-        PSU_OFF();
-        return;
-      case 'O': // PSU [O]n
-        // This will recalibrate range of ESCs
-        // Might not be neccessary, but we'll do it anyways
-        init_esc();
-        return;
+      case 'S': // Stop all motors
+        Serial.println(F("Stopped all ESCs"));
+        esc1.writeMicroseconds(MIN_PERIOD);
+        esc2.writeMicroseconds(MIN_PERIOD);
+        goto prompt;
       default:
         Serial.println(F("Invalid format, expected motor ID"));
-        return;
+        goto prompt;
     }
 
     // Make sure next character in buffer is a valid number
-    next = Serial.peek();
+    // FIXME: peek() call always returns 0xff, find out why
+    /* next = Serial.peek();
     if (next < '0' || next > '9') { // Invalid char
-      Serial.println(F("Expected number after ESC ID"));
-      return;
+      Serial.print(F("Expected number after command, got ")); Serial.println(next);
+      goto prompt;
+    } */
+
+    rawRead = Serial.parseInt(SKIP_NONE);
+    if (act == 'P') {
+      if (rawRead == 0) PSU_OFF() else init_esc();
+    } else {
+      interval = constrain(rawRead, MIN_PERIOD, MAX_PERIOD);
+      // Turn on the PSU if it isn't already
+      if (!psuOn) init_esc();
+      // Write us to ESC
+      act == 'T' ? esc1.writeMicroseconds(interval) : esc2.writeMicroseconds(interval);
+      // Print interval
+      Serial.print(F("Set interval of ESC <")); Serial.print(act); Serial.print(F("> to "));
+      Serial.print(interval); Serial.println(F("us"));
     }
 
-    rawRead = Serial.parseInt();
-    interval = constrain(rawRead, MIN_PERIOD, MAX_PERIOD);
-    // Write us to ESC
-    act == 'T' ? esc1.writeMicroseconds(interval) : esc2.writeMicroseconds(interval);
-    // Print interval
-    Serial.print(F("Set interval of ESC <")); Serial.print(act); Serial.print(F("> to "));
-    Serial.print(interval); Serial.println(F("us"));
-
-    SPEED_PROMPT();
+    goto prompt;
   }
+
+  return;
+  prompt:
+    SPEED_PROMPT();
+    return;
 }
