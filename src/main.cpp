@@ -5,9 +5,9 @@
 #define MAX_PERIOD 2000
 #define MIN_PERIOD 1000
 
-#define ESC_1_PIN  9
-#define ESC_2_PIN  8
-#define PSU_PIN    2
+#define ESC_1_PIN  2
+#define ESC_2_PIN  3
+#define PSU_PIN    4
 
 
 Servo esc1;
@@ -53,6 +53,7 @@ void init_esc() {
   Serial.println(F("Calibrate min duty"));
   esc1.writeMicroseconds(MIN_PERIOD);
   esc2.writeMicroseconds(MIN_PERIOD);
+  delay(2500);
 
   Serial.println(F("ESC init done"));
 }
@@ -94,9 +95,9 @@ void loop() {
       case 'P': // PSU actions
         break;
       case 'S': // Stop all motors
-        Serial.println(F("Stopped all ESCs"));
         esc1.writeMicroseconds(MIN_PERIOD);
         esc2.writeMicroseconds(MIN_PERIOD);
+        Serial.println(F("Stopped all ESCs"));
         goto prompt;
       default:
         Serial.println(F("Invalid format, expected motor ID"));
