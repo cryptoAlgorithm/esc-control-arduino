@@ -3,7 +3,7 @@ import threading
 
 import serial
 
-from py.utils import wait_receive
+from py.utils import wait_ack
 
 DEFAULT_BAUD = 115200  # Default baud rate that will be used if none is supplied
 
@@ -53,12 +53,16 @@ def main_loop():
         try:
             raw_in = input(SPEED_PROMPT).strip()
             if len(raw_in) == 0:
-                print('Stopping all motors...')
+                print('Stopping all motors...', end='')
                 ser.write(STOP_PAYLOAD)
+                wait_ack(ser, 'Stopped all ESCs')
+                print(' Stopped')
                 continue
             if raw_in == 'o':
-                print('Turning off PSU...')
+                print('Turning off PSU...', end='')
                 ser.write(PS_OFF_PAYLOAD)
+                wait_ack(ser, 'PSU OFF')
+                print(' PSU Off')
                 continue
             speeds = [None if len(s.strip()) == 0 else int(s.strip()) for s in raw_in.split(',')]
         except ValueError:
@@ -79,12 +83,12 @@ def main_loop():
             ser.write((motor_id + str(BASE_PERIOD + speed)).encode('utf-8'))
             # Wait for controller to respond
             print(
-                'Setting speed of motor {id:s} to {power:.2f}%... '
+                'Setting speed of motor {id:s} to {power:.2f}%...'
                 .format(id=motor_id, power=(speed / MAX_SPEED) * 100),
                 end=''
             )
-            wait_receive(ser, rf'Set interval of ESC <{motor_id}> to \d{{4}}us$')
-            print(f'Controller ACK')
+            wait_ack(ser, rf'^Set interval of ESC <{motor_id}> to \d{{4}}us$', regex=True)
+            print(' Controller ACK')
         print()
 
 
